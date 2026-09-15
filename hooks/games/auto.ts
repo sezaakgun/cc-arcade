@@ -25,7 +25,7 @@ export function pickAuto(ctx: AutoContext, rand = Math.random): { game: string; 
   }
   if (ctx.working && ctx.turnMs >= 60_000) {
     const min = Math.floor(ctx.turnMs / 60_000)
-    return { game: pickRandom(['tetris', 'invaders', 'snake'], ctx.lastGame, rand), reason: `Claude has been working ${min} min, time for a longer game` }
+    return { game: pickRandom(['tetris', 'invaders', 'snake', 'doom'], ctx.lastGame, rand), reason: `Claude has been working ${min} min, time for a longer game` }
   }
   if (ctx.working) {
     return { game: pickRandom(['flappy', 'pong', 'typing'], ctx.lastGame, rand), reason: 'Claude is working, a quick round' }

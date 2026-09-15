@@ -1,10 +1,10 @@
 {
   "name": "cc-arcade",
   "version": "0.1.0",
-  "description": "Games above the Claude Code prompt (snake, Tetris, 2048, Minesweeper, Flappy, Pong, typing test, Space Invaders) plus a pet that grows as Claude tests, commits and edits. Needs function hooks (early access) and an interactive terminal.",
+  "description": "Games above the Claude Code prompt (snake, Tetris, 2048, Minesweeper, Flappy, Pong, typing test, Space Invaders, and the real 1993 Doom) plus a pet that grows as Claude tests, commits and edits. Needs function hooks (early access) and an interactive terminal; Doom also needs bun or node.",
   "author": { "name": "Seza Akgün" },
   "homepage": "https://github.com/sezaakgun/cc-arcade",
   "repository": "https://github.com/sezaakgun/cc-arcade",
   "license": "MIT",
-  "keywords": ["arcade", "games", "terminal", "tui", "snake", "2048", "minesweeper", "typing", "pet", "function-hooks"]
+  "keywords": ["arcade", "games", "terminal", "tui", "snake", "2048", "minesweeper", "typing", "doom", "pet", "function-hooks"]
 }

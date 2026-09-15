@@ -4,3 +4,6 @@
 node_modules/
 bun.lock
 .DS_Store
+# the Doom engine (GPL, with the shareware WAD inside): fetched by doom/launch.mjs on first start
+doom/doom.wasm
+doom/doom.wasm.part

@@ -8,7 +8,7 @@ Run `/arcade`, pick a game, and play it right above the prompt while Claude work
 
 ![Tetris above the prompt mid-game: the back and close buttons above the board, the score line below](docs/screenshots/tetris.png)
 
-Eight games and a pet: snake, Tetris, 2048, Minesweeper, Flappy, Pong against the computer, a typing test and Space Invaders. Each board has one status line underneath with the score, the controls that matter now and your best score.
+Nine games and a pet: snake, Tetris, 2048, Minesweeper, Flappy, Pong against the computer, a typing test, Space Invaders and Doom, the real one from 1993 (see [Doom](#doom)). Each board has one status line underneath with the score, the controls that matter now and your best score.
 
 The plugin is built on Claude Code **function hooks**: TypeScript that runs inside Claude Code's own process, instead of shell-command hooks. They are in early access, so they need the environment variable the quick start sets, and the API can change between Claude Code releases.
 
@@ -18,6 +18,7 @@ The plugin is built on Claude Code **function hooks**: TypeScript that runs insi
 - An interactive terminal session. Nothing draws in `claude -p`, the desktop app or mobile.
 - A terminal that reports the mouse. One click is what gives a board the keyboard, and the picker buttons, Minesweeper, Pong and Space Invaders use the mouse too.
 - A terminal font with box-drawing and block characters. Modern terminals are fine; the old Windows console draws them as boxes.
+- For Doom only: `bun` or `node` on the PATH (a Claude Code installed with npm has node), and a terminal with 24-bit colour. The engine runs in a process of its own; see [Doom](#doom).
 
 ## Quick start
 
@@ -94,6 +95,7 @@ WASD mirrors the arrows in every game that uses them.
 - **`pong`**: ↑ ↓, or move the mouse over the board, to place your paddle on the left. Space pauses, `r` restarts. First to 5 wins.
 - **`typing`**: type the line shown. Correct characters turn green; a wrong one shows on red until you backspace it. Tab skips to another line, Enter starts the next one after a finished line. Only keys the terminal delivers count, so pasting is no shortcut.
 - **`invaders`**: ← → or the mouse move the ship, Space, ↑ or a click fires. `p` pauses, `r` restarts. One shot at a time, three lives, and each cleared wave starts a row lower, up to three rows, and steps faster.
+- **`doom`**: the 1993 original, shareware episode, running for real. ← → turn, ↑ ↓ or `w` `s` walk, `a` `d` strafe, Shift with any of them runs. Space or a click fires, `e` opens doors and presses switches, Enter works the menus, Backspace stands in for Escape (the terminal keeps Esc for the prompt), Tab shows the automap, the digits pick weapons, and the F-keys do what they do in the game (F2 save, F3 load, F6 quick save, F9 quick load, F11 brightness). `h` cycles how the picture is drawn, `]` and `[` make it bigger and smaller, `p` pauses. Details under [Doom](#doom).
 
 | | |
 |---|---|
@@ -101,7 +103,7 @@ WASD mirrors the arrows in every game that uses them.
 | ![Flappy between two pipes](docs/screenshots/flappy.png) | ![Pong at the start of a rally](docs/screenshots/pong.png) |
 | ![Space Invaders with part of the first wave shot down](docs/screenshots/invaders.png) | ![The typing test with the first word typed](docs/screenshots/typing.png) |
 
-These are clones of the genre, not affiliated with or endorsed by Tetris Holding, Taito or Atari.
+All but Doom are clones of the genre, not affiliated with or endorsed by Tetris Holding, Taito or Atari. Doom is id Software's own engine; see [Doom](#doom) for what is in it and under which terms.
 
 ## Playing while Claude works
 
@@ -114,7 +116,7 @@ The board takes the rows above the prompt that Claude Code gives plugins, about 
 `/arcade auto`, or `auto` in the picker, looks at the moment and picks from a small group:
 
 - **The last thing Claude did was fail a test run, under five minutes ago**: `pet`, to check on it.
-- **Claude has been on this turn for a minute or more**: `tetris`, `invaders` or `snake`, something to sink into.
+- **Claude has been on this turn for a minute or more**: `tetris`, `invaders`, `snake` or `doom`, something to sink into.
 - **Claude is working, under a minute so far**: `flappy`, `pong` or `typing`, a quick round.
 - **Claude is idle**: `2048` or `minesweeper`, games you can put down any time.
 
@@ -150,11 +152,27 @@ Each game keeps its best score across sessions, and a new best shows a toast. `/
 - **typing**: fastest finished line, in words per minute at five characters a word
 - **invaders**: highest score, 10 per alien
 
+Doom keeps no best score here: its own tally is on the screen after each level.
+
+## Doom
+
+`/arcade doom` runs the actual Doom: id Software's engine as released in 1997 (`linuxdoom-1.10`), built to WebAssembly by [diekmann's port](https://github.com/diekmann/wasm-fizzbuzz/tree/main/doom), with the shareware WAD (episode one, *Knee-Deep in the Dead*) inside. That build is not in this repository: the first `/arcade doom` fetches it (6.8 MB) from the port's own site, checks it against its SHA-256 and keeps it as `doom/doom.wasm`. `CC_ARCADE_DOOM_WASM` in the environment names another file to run instead, one you built from the port yourself for instance.
+
+![Doom's first level above the prompt, drawn two pixels to a cell](docs/screenshots/doom.png)
+
+A plugin's own code cannot run WebAssembly, so the engine runs in a process of its own, `doom/server.mjs`, which the plugin starts the first time you open the game, with `bun` or with `node`, whichever the PATH has. It listens on `127.0.0.1:47321` and nowhere else. Ten times a second, as often as the band may redraw, the plugin sends it the keys you pressed and gets the picture back, scaled to the board, through Claude Code's own `$.http.fetch`; nothing else crosses. A board may draw only so much at once (2000 nodes, 100000 characters, about 900 runs of colour), so the picture is drawn in strips, each a board of its own and small enough to draw every colour in it; the strips are cut from one picture, so they always agree.
+
+- **The picture.** Four pixels a cell to start with, as the quadrant glyphs (▘▚▟ and so on) every terminal font has, in two colours a cell. `h` cycles to six a cell, the sextant glyphs of Unicode's *Symbols for Legacy Computing*, half again as much detail, which needs a terminal that draws them, as Ghostty, Kitty and WezTerm do, or a font that has them; and then to two a cell, a half block over its background, the plainest. If sextants give you boxes or blanks, press `h` again. The picture keeps the engine's shape, 1.6 times as wide as tall. It starts 32 rows tall; `]` makes it bigger and `[` smaller, four rows a step, up to what the band holds. Bigger is slower: every cell is drawn again ten times a second, and past about 5000 cells Claude Code's own drawing falls behind and the game feels sluggish. Colours a shade apart along a row are merged before drawing, which takes out most of the work and shows hardly at all. The server lifts the shadows a little for a terminal's black; `F11` in the game lifts them more, in steps, and `CC_ARCADE_DOOM_GAMMA=1` in the environment leaves them as drawn.
+- **Keys.** Terminals report presses and never releases, so the server holds a movement key for a quarter of a second after each press; a key you hold repeats, and reads as held. Escape never reaches a board, so Backspace sends Doom's Escape: it opens and closes the menu. A click gives one strip of the picture the keyboard; the strips are numbered from the bottom, so shrinking the picture with `[` keeps the keyboard where you clicked unless that strip is gone, in which case click again.
+- **Pausing.** The game pauses when Claude finishes a turn, when you press `p`, and after ten seconds without a key, so it waits while you type at the prompt. Any key resumes. Closing the board pauses it too; the server keeps the game for half an hour after the last request, then quits, and the next `/arcade doom` starts it afresh.
+- **Terms.** The engine's source is id Software's, under the GPL 2, and the shareware WAD may be passed on whole and unchanged; both are inside the `doom.wasm` the plugin fetches, a separate program this MIT-licensed plugin talks to over HTTP, and neither is part of this repository. Doom is a trademark of id Software.
+
 ## How it works
 
 - `hooks/register.tsx` is the hooks module. It registers `/arcade` and draws the picker or the open board above the prompt. It keeps best scores and the pet with `$.store`, times turns for `auto` on `turn.start`, pauses the open game on `turn.complete`, and feeds the pet on `tool.call`.
-- `hooks/boards/*.tsx` are surface modules, one per board, mounted as `Client` elements. Each runs on the drawing thread with its own frame clock, keyboard and mouse, and posts a finished round's score back to the hooks module.
-- `hooks/games/*.ts` hold each game's rules, the pet, the best-score comparison and the `random` and `auto` pickers as pure functions. The tests cover them.
+- `hooks/boards/*.tsx` are surface modules, one per board, mounted as `Client` elements. Each runs on the drawing thread with its own frame clock, keyboard and mouse, and posts a finished round's score back to the hooks module. `doom.tsx` is one strip of the Doom picture, mounted several times; the hooks module runs that game and hands each strip its rows.
+- `hooks/games/*.ts` hold each game's rules, the pet, the best-score comparison and the `random` and `auto` pickers as pure functions. The tests cover them. For Doom the rules are the engine's; `games/doom.ts` holds how its picture becomes cells and how the terminal's keys are named for it.
+- `doom/` is the Doom engine and its server: `doom.wasm`; `server.mjs`, the HTTP door on localhost that scales the picture; `engine.mjs`, the engine itself on a worker thread of the server (it blocks while it draws a screen melt, and the server must keep answering); and `launch.mjs`, which starts the server in the background so the hooks module's `$.process.run` returns.
 
 ## Troubleshooting
 
@@ -165,6 +183,10 @@ Each game keeps its best score across sessions, and a new best shows a toast. `/
 - **A board is replaced by one line naming the plugin and the module.** The board threw an error or ran over its time budget and was unmounted. Run `/arcade stop` and open it again. If it repeats, start Claude with `--debug-file /tmp/cc-arcade.log` and search the log for `cc-arcade`.
 - **The pet does not grow.** Only Claude's tool calls feed it, and only the commands listed in [The pet](#the-pet).
 - **Games stopped working after editing the plugin.** A hot reload that fails partway leaves the old version loaded. Restart the session.
+- **Doom says the game did not start.** It needs `bun` or `node` on the PATH of the shell Claude Code runs in, and the first start needs the network, to fetch the engine. `node doom/launch.mjs` (or `bun`) from the plugin folder shows what goes wrong.
+- **Doom shows "the game server is not running".** The server quit after half an hour without a request, or was killed. `/arcade doom` starts it again.
+- **Doom is coloured noise or boxes after `h`.** The font has no sextant glyphs. `h` again goes on to half blocks, and once more back to quadrants.
+- **A strip of Doom's picture turned into one line naming the plugin and `doom.tsx`.** That strip drew more than a board may at once and was unmounted; `← games` and `/arcade doom` open the board afresh. It should not happen: each strip is cut small enough. If it does, start Claude with `--debug-file` and look for `doom.tsx` in the log.
 
 ## Limits
 
@@ -173,6 +195,7 @@ Each game keeps its best score across sessions, and a new best shows a toast. `/
 - A game only gets the keyboard after a click, and never gets Esc, which always returns to the prompt.
 - A headless `claude -p` run, the desktop app and mobile never draw the arcade.
 - Best scores and the pet live in the plugin's store on this machine. Nothing is shared between machines.
+- Doom is the one game with a process of its own, and the one that needs a runtime installed. Its sound never plays, its picture is as tall as the band, and it takes only the keys a terminal reports: no mouse look, no Escape, no key held down longer than it repeats.
 
 ## Develop
 
@@ -184,7 +207,7 @@ claude plugin validate .claude-plugin/plugin.json   # lists the hooked events, $
 claude plugin validate .                            # checks the marketplace manifest
 ```
 
-`bun test` is the only check that works on a bare clone, and CI runs it on every push. Type checking needs the early-access types: open a Claude Code session in this folder with function hooks on, run `/plugin-types` (it writes the git-ignored `.claude/types/`), then:
+`bun test` is the only check that works on a bare clone, and CI runs it on every push. Doom's server runs by hand with `node doom/server.mjs` (or `bun`), and `python3 scripts/e2e-doom.py` drives a whole Claude Code session in a pseudo-terminal to try the board without a person; its header says what it needs. Type checking needs the early-access types: open a Claude Code session in this folder with function hooks on, run `/plugin-types` (it writes the git-ignored `.claude/types/`), then:
 
 ```sh
 bunx -p typescript tsc -p .
