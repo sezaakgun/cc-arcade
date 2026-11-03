@@ -58,7 +58,7 @@ export const register: Register = on => {
     // an unhandled rejection here would unmount the whole module
     const stored = (key: string) => $.store.get(key).catch(err => { $.ui.log(`cc-arcade: store read failed: ${err}`); return undefined })
     const saved = await stored('pet')
-    pet = isPet(saved) ? saved : newPet($.clock.now())
+    pet = isPet(saved) ? saved : newPet(await $.clock.now())
     if (!isPet(saved)) await $.store.set('pet', pet).catch(err => $.ui.log(`cc-arcade: store write failed: ${err}`))
     for (const name of NAMES) {
       const score = Number(await stored(`best:${name}`))
@@ -109,7 +109,7 @@ export const register: Register = on => {
     }
     if (arg === 'random') return open(pickRandom(PLAYABLE, lastGame))
     if (arg === 'auto') {
-      const pick = pickAuto(autoContext($.clock.now()))
+      const pick = pickAuto(autoContext(await $.clock.now()))
       return open(pick.game, `auto: ${pick.reason}`)
     }
     if (isGame(arg)) return open(arg)
@@ -117,7 +117,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
-    turnStartedAt = $.clock.now()
+    turnStartedAt = await $.clock.now()
     return next(e)
   })
 
@@ -139,8 +139,9 @@ export const register: Register = on => {
     const event = petEvent(e.tool, typeof command === 'string' ? command : undefined, 'deny' in r ? undefined : !r.isError)
     if (!event) return r
     const saved = await $.store.get('pet').catch(() => undefined)
-    const current = isPet(saved) ? saved : pet ?? newPet($.clock.now())
-    const fed = feed(current, event, $.clock.now())
+    const now = await $.clock.now()
+    const current = isPet(saved) ? saved : pet ?? newPet(now)
+    const fed = feed(current, event, now)
     pet = fed
     await $.store.set('pet', fed).catch(err => $.ui.log(`cc-arcade: store write failed: ${err}`))
     if (level(fed.xp) > level(current.xp)) {
@@ -156,7 +157,8 @@ export const register: Register = on => {
     const data = e.data as { game?: unknown; score?: unknown } | null
     const name = data?.game
     const score = data?.score
-    if (!isGame(name) || typeof score !== 'number') return next(e)
+    // a post is input: NaN or Infinity as a best score would stick in the store for good
+    if (!isGame(name) || typeof score !== 'number' || !Number.isFinite(score)) return next(e)
     const game = GAMES[name]
     if (isBetter(score, best[name], game.lowerIsBetter)) {
       best[name] = score
@@ -173,11 +175,11 @@ export const register: Register = on => {
 
     if (active === PICKER) {
       // no hotkeys: a band hotkey would press on a digit typed as the first character of a prompt
-      const choose = (name: string) => {
+      const choose = async (name: string) => {
         if (name === 'close') active = undefined
         else if (name === 'random') active = pickRandom(PLAYABLE, lastGame)
         else if (name === 'auto') {
-          const pick = pickAuto(autoContext($.clock.now()))
+          const pick = pickAuto(autoContext(await $.clock.now()))
           active = pick.game
           $.ui.toast(`auto: ${pick.game}, ${pick.reason}`)
         } else active = name
@@ -197,9 +199,12 @@ export const register: Register = on => {
       )
     }
 
-    const cols = e.viewport?.columns ?? 80
-    // one row for the back and close buttons, one for whatever else draws in the band
-    const rows = Math.max(8, e.props.maxRows - 2)
+    // the band's own width, less the engine's [-] mark; a build or surface that does not say falls
+    // back to the viewport, then to a terminal's 80
+    const cols = Math.max(20, e.props.bodyColumns || e.viewport?.columns || 80)
+    // one row for the back and close buttons, one for whatever else draws in the band; no maxRows
+    // means a terminal's 24, not NaN
+    const rows = Math.max(8, (e.props.maxRows || 24) - 2)
     const tall = (max: number) => Math.min(rows, max)
     const props = { best: best[active] ?? 0, done: turnsDone, safe }
     // the key names the board, so switching mounts a fresh one and a redraw keeps the running one;
@@ -215,7 +220,7 @@ export const register: Register = on => {
       : active === 'invaders' ? <Client key={key} module="./boards/invaders.tsx" width={cols} height={tall(19)} props={props} />
       // doom is a view, not a board: it takes every row and column the band gives it
       : active === 'doom' ? <Client key={key} module="./boards/doom.tsx" width={cols} height={rows} props={props} />
-      : active === 'pet' ? <Client key={key} module="./boards/pet.tsx" width={cols} props={{ pet, now: $.clock.now() }} />
+      : active === 'pet' ? <Client key={key} module="./boards/pet.tsx" width={cols} props={{ pet, now: await $.clock.now() }} />
       : <Client key={key} module="./boards/typing.tsx" width={cols} props={props} />
     // back to the picker, or close; click-only like the picker (no hotkeys: a band hotkey would press
     // on a digit typed as the first character of a prompt)

@@ -3,6 +3,8 @@ import {
   at, blocked, cast, fire, LEVELS, move, newDoom, parseLevel, select, solid, STEP, SWING, tick,
   turn, wrap, type DoomGame,
 } from '../hooks/games/doom.ts'
+import { runs } from '../hooks/boards/common.tsx'
+import Doom, { CRITICAL, SHADES, safeRgb, SPRITE, WALL } from '../hooks/boards/doom.tsx'
 
 const ROOM = [
   '2222222',
@@ -196,7 +198,6 @@ test('doom: every floor is playable', () => {
 
 test('doom: the node budget', async () => {
   // the engine counts the spans in a frame, so a row folds neighbours together until it fits
-  const { runs } = await import('../hooks/boards/common.tsx')
   const stripes = (x: number) => ['▀', `c${x % 4}`, undefined] as const
   expect(runs(8, 0, () => ['▀', 'red', 'blue'])).toEqual([['▀▀▀▀▀▀▀▀', 'red', 'blue']])
   expect(runs(8, 0, stripes)).toHaveLength(8)
@@ -236,8 +237,7 @@ const apart = (a: readonly number[], b: readonly number[], step: number) => {
 const TELLS_APART = 0.28
 
 test('doom: colour-blind mode', async () => {
-  const { CRITICAL, SHADES, safeRgb, SPRITE, WALL } = await import('../hooks/boards/doom.tsx')
-  const normal = (name: string) => (name.startsWith('wall:') ? WALL[name.slice(5)] : SPRITE[name as never].rgb)
+  const normal = (name: string) => (name.startsWith('wall:') ? WALL[name.slice(5)] : SPRITE[name as keyof typeof SPRITE].rgb)
   const gap = (f: (n: string) => readonly number[]) => ([a, b]: [string, string]) => apart(f(a), f(b), SHADES)
   // every pair that costs something to mix up stays apart for all three kinds of colour blindness
   for (const pair of CRITICAL) {
@@ -256,7 +256,6 @@ test('doom: colour-blind mode', async () => {
 test('doom: colour-blind mode marks the door and the exit with a pattern', async () => {
   ;(globalThis as any).h = (tag: string, props: unknown, ...kids: unknown[]) =>
     ({ tag, props: props ?? {}, kids: kids.flat(Infinity).filter(k => k !== null && k !== undefined && k !== false) })
-  const Doom = (await import('../hooks/boards/doom.tsx')).default
   // both a small band and a wide one: the run cap in grid() tightens as the view grows, and a
   // pattern fine enough to be folded away disappears exactly where it is needed most
   const at = (columns: number, rows: number) => ({
@@ -300,7 +299,6 @@ test('doom: colour-blind mode marks the door and the exit with a pattern', async
 test('doom: stops when Claude answers, and says so in the view', async () => {
   ;(globalThis as any).h = (tag: string, props: unknown, ...kids: unknown[]) =>
     ({ tag, props: props ?? {}, kids: kids.flat(Infinity).filter(k => k !== null && k !== undefined && k !== false) })
-  const Doom = (await import('../hooks/boards/doom.tsx')).default
   let frame: (() => void) | undefined
   let press: ((e: { key: string }) => void) | undefined
   const surface: any = {
@@ -483,7 +481,6 @@ test('doom: no floor drops you on top of its own exit', () => {
 const painted = async (game: Partial<DoomGame>, columns = 80, rows = 14, props: { safe?: boolean } = {}) => {
   ;(globalThis as never as { h: unknown }).h = (tag: string, p: unknown, ...kids: unknown[]) =>
     ({ tag, props: p ?? {}, kids: kids.flat(Infinity).filter(k => k !== null && k !== undefined && k !== false) })
-  const Doom = (await import('../hooks/boards/doom.tsx')).default
   const surface: any = {
     columns, rows, elements: { Box: 'Box', Text: 'Text' }, state: undefined,
     setState(next: unknown) { this.state = next },
